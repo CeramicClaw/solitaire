@@ -6,10 +6,12 @@ PROJECT = solitaire
 ${PROJECT} : $(DEPS)
 	$(CC) -o ${PROJECT} $(DEPS)
 cards.o:
-	$(CC) $(CFLAGS) -c cards.c cards.h
+	$(CC) $(CFLAGS) -c src/cards.c
 deck.o:
-	$(CC) $(CFLAGS) -c deck.c deck.h
+	$(CC) $(CFLAGS) -c src/deck.c
 main.o:
-	$(CC) $(CFLAGS) -c main.c deck.h
+	$(CC) $(CFLAGS) -c src/main.c
 clean:
-	rm -rf *.o *.gch
+	rm -rf *.o
+cleanall:
+	rm -rf ${PROJECT} *.o
