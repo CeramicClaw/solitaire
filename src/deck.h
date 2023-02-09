@@ -1,3 +1,6 @@
+#ifndef DECK_H
+#define DECK_H
+#include <stdbool.h>
 #include <stdlib.h>
 
 // Bridge ordering: Clubs < Diamonds < Hearts < Spades
@@ -27,7 +30,10 @@ typedef struct deck_tag deck_t;
 
 card_t* makeCard(unsigned value);
 void printCard(card_t* pCard);
-deck_t* makeDeck();
+deck_t* makeNullDeck();
+deck_t* makeStandardDeck();
 void shuffleDeck(deck_t* pDeck);
+void moveCard(deck_t* pDeck, size_t iFrom, size_t iTo);
 void printDeck(deck_t* pDeck);
-void freeDeck(deck_t* pDeck);
+void freeDeck(deck_t* pDeck, bool bFreeCards);
+#endif

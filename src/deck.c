@@ -1,5 +1,4 @@
 #include <assert.h>
-#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -21,17 +20,17 @@ card_t* makeCard(unsigned value)
     pCard->value = value;
     pCard->suit = CLUBS;
   }
-  else if (value <= 26)
+  else if (value <= 26) // DIAMONDS
   {
     pCard->value = value - 13;
     pCard->suit = DIAMONDS;
   }
-  else if (value <= 39)
+  else if (value <= 39) // HEARTS
   {
     pCard->value = value - 26;
     pCard->suit = HEARTS;
   }
-  else if (value <= 52)
+  else if (value <= 52) // SPADES
   {
     pCard->value = value - 39;
     pCard->suit = SPADES;
@@ -46,23 +45,31 @@ card_t* makeCard(unsigned value)
     pCard->value = 53;
     pCard->suit = SPADES;
   }
-
   return pCard;
 }
 
-/* Allocate a standard deck of playing cards plus 2 Jokers */
-deck_t* makeDeck()
+/* Allocate a deck of nCards, but do not allocate the individual card_ts */
+deck_t* makeNullDeck(size_t nCards)
 {
   // Allocate the deck
   deck_t* pDeck = malloc(sizeof(deck_t));
   pDeck->cards = malloc(sizeof(pDeck->cards));
   pDeck->nCards = 0;
-
-  // Make cards 1-54, reallocating as needed
-  for (unsigned i = 1; i <= 54; i++)
+  for (size_t i = 0; i < nCards; i++)
   {
     pDeck->nCards++;
     pDeck->cards = realloc(pDeck->cards, pDeck->nCards * sizeof(pDeck->cards));
+    pDeck->cards[i] = NULL;
+  }
+  return pDeck;
+}
+
+/* Allocate a standard deck of 52 cards plus 2 Jokers */
+deck_t* makeStandardDeck()
+{
+  deck_t* pDeck = makeNullDeck(54); // 52 cards + 2 Jokers
+  for (unsigned i = 1; i <= 54; i++)
+  {
     card_t* pCard = makeCard(i);
     assert(pCard != NULL);
     pDeck->cards[i-1] = pCard;
@@ -94,6 +101,24 @@ void shuffleDeck(deck_t* pDeck)
     }
   }
   printDeck(pDeck);
+}
+
+/* Move a card in a deck from a position, to another position */
+void moveCard(deck_t* pDeck, size_t iFrom, size_t iTo)
+{
+  assert(pDeck->nCards > iFrom && pDeck->nCards > iTo);
+  card_t* pC = pDeck->cards[iFrom];
+  if (iTo < iFrom)
+  {
+    for (size_t i = iFrom; i > iTo; i--)
+      pDeck->cards[i] = pDeck->cards[i-1];
+  }
+  else
+  {
+    for (size_t i = iFrom; i < iTo; i++)
+      pDeck->cards[i] = pDeck->cards[i+1];
+  }
+  pDeck->cards[iTo] = pC;
 }
 
 /* Print a value/suit pair
@@ -148,12 +173,14 @@ void printDeck(deck_t* pDeck)
   printf("\n");
 }
 
-/* Free all memory allocated for a deck_t */
-void freeDeck(deck_t* pDeck)
+/* Free all memory allocated for a deck_t.
+   Pass "true" to bFreeCards to free all cards, too. */
+void freeDeck(deck_t* pDeck, bool bFreeCards)
 {
-  for (size_t i = 0; i < pDeck->nCards; i++)
+  if (bFreeCards)
   {
-    free(pDeck->cards[i]);
+    for (size_t i = 0; i < pDeck->nCards; i++)
+      free(pDeck->cards[i]);
   }
   free(pDeck->cards);
   free(pDeck);
