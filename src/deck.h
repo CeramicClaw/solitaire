@@ -1,9 +1,8 @@
 #ifndef DECK_H
 #define DECK_H
-#include <stdbool.h>
 #include <stdlib.h>
 
-// Bridge ordering: Clubs < Diamonds < Hearts < Spades
+/* Bridge ordering: Clubs < Diamonds < Hearts < Spades */
 typedef enum
 {
   CLUBS,
@@ -13,7 +12,7 @@ typedef enum
   NUM_SUITS
 } suit_t;
 
-// Aces have value 1, Jokers have value 53
+/* Aces have value 1, Jokers have value 53 */
 struct card_tag
 {
   unsigned value;
@@ -30,10 +29,13 @@ typedef struct deck_tag deck_t;
 
 card_t* makeCard(unsigned value);
 void printCard(card_t* pCard);
+deck_t* makeDeckFromInt(int* pList, size_t iLen);
+deck_t* makeDeckFromKey(int* pList, size_t iLen);
 deck_t* makeNullDeck();
 deck_t* makeStandardDeck();
+bool validateDeck(int* pList, size_t iLen);
 void shuffleDeck(deck_t* pDeck);
 void moveCard(deck_t* pDeck, size_t iFrom, size_t iTo);
 void printDeck(deck_t* pDeck);
-void freeDeck(deck_t* pDeck, bool bFreeCards);
+void freeDeck(deck_t* pDeck);
 #endif
