@@ -1,10 +1,13 @@
 #include <assert.h>
+#include <errno.h>
 #include <stdio.h>
 #include <string.h>
 
 #include "cipher.h"
 #include "file.h"
 
+char* cipher(bool bEncrypt, deck_t* pDeck, char* pCipher, size_t iLen);
+bool writeOutput(char* pOutput, bool bEncrypt, char* pCleanInput, char* pCleanKey, deck_t* pInputDeck, deck_t* pOutputDeck, char* pCipher);
 int genKeystream(deck_t* pDeck);
 void moveJokers(deck_t* pDeck);
 void tripleCut(deck_t* pDeck);
@@ -12,15 +15,15 @@ void countCut(deck_t* pDeck);
 int charToInt(char c);
 char intToChar(int i);
 
-/* Read the input file pFile.
+/* Read the input file pInput.
    Set bEncrypt to true to encrypt the text, false to decrypt it.
    Set isDeck to true if a deck is to be used, false if key text is to be used.
-   If successful, the file 'output.txt' will be created. */
-bool run(char* pFile, bool bEncrypt, bool isDeck)
+   If successful, the file pOutput will be created. If pOutput is NULL, 'output.txt' is used.*/
+bool run(char* pInput, bool bEncrypt, bool isDeck, char* pOutput)
 {
   char* pRawInput = NULL;
   char* pRawKey = NULL;
-  if (!parseFile(pFile, &pRawInput, &pRawKey))
+  if (!parseFile(pInput, &pRawInput, &pRawKey))
     return false;
 
   // If no key is given and we're trying to decrypt, fail the calculation
@@ -77,10 +80,7 @@ bool run(char* pFile, bool bEncrypt, bool isDeck)
 
     free(pDeckKey);
   }
-
-  printf("Cleaned cipher text: '%s'.\n", pCleanInput);
-  printf("Cleaned key text: '%s'.\n", pCleanKey);
-
+  
   // If no input deck/key was provided, create a random, shuffled deck of cards
   if (pDeck == NULL)
   {
@@ -90,32 +90,38 @@ bool run(char* pFile, bool bEncrypt, bool isDeck)
     shuffleDeck(pDeck);
   }
 
-  /* Here we *should* have a valid cipher text and a valid deck
-    Encrypt/decrypt the cipher text
-    Write everything to file
-    Cleanup memory
-    ???
-    Profit
-  */
+  // Here we *should* have a valid deck, a clean input, and a non-empty cipher text
+  assert(pDeck != NULL);
+  assert(pCleanInput != NULL);
+  assert(strlen(pCleanInput) != 0);
 
-  char* pOutput = cipher(bEncrypt, pDeck, pCleanInput, strlen(pCleanInput));
+  deck_t* pInputDeck = copyDeck(pDeck);
+  // Also need to modify the print method to return a null-terminated string
+  char* pCipher = cipher(bEncrypt, pDeck, pCleanInput, strlen(pCleanInput));
+  assert(pCipher != NULL);
 
-  printf("Encrypted text: '%s'\n", pOutput);
+  // Create output file
+  if (pOutput == NULL)
+    pOutput = "output.txt";
 
+  if (!writeOutput(pOutput, bEncrypt, pCleanInput, (isDeck ? NULL : pCleanKey), pInputDeck, pDeck, pCipher))
+    return false;
+
+  // Free all memory
   free(pRawInput);
   free(pRawKey);
   free(pCleanInput);
   free(pCleanKey);
-  free(pOutput);
+  free(pCipher);
+  freeDeck(pInputDeck);
   freeDeck(pDeck);
 
   return true;
 }
 
 /* Encode/decode text from a deck of cards.
-   If encrypting, set bEncrypt to true; if decrypting set to true.
-   Returned output is an allocated, null-terminated string of chars.
-*/
+   If encrypting, set bEncrypt to true; if decrypting set to false.
+   Returned output is an allocated, null-terminated string of chars. */
 char* cipher(bool bEncrypt, deck_t* pDeck, char* pCipher, size_t iLen)
 {
   char* pOutput = malloc((iLen + 1) * sizeof(char)); // Add 1 for \0
@@ -137,6 +143,52 @@ char* cipher(bool bEncrypt, deck_t* pDeck, char* pCipher, size_t iLen)
   }
   pOutput[iLen] = '\0';
   return pOutput;
+}
+
+/* Write the summary to an ouptut file 'pOutput' */
+bool writeOutput(char* pOutput, bool bEncrypt, char* pCleanInput, char* pCleanKey, deck_t* pInputDeck, deck_t* pOutputDeck, char* pCipher)
+{
+  FILE* f = fopen(pOutput, "w");
+  if (f == NULL)
+  {
+    fprintf(stderr, "Unable to create output file '%s': %s\n", pOutput, strerror(errno));
+    return false;
+  }
+
+  // pCleanInput and pCipher are both null-terminated
+  fputs(bEncrypt ? "Encrypt Mode\n" : "Decrypt Mode\n", f);
+  fputs("Cleaned input text: '", f);
+  fputs(pCleanInput, f);
+  fputs("'\n", f);
+  if (pCleanKey != NULL)
+  {
+    fputs("Cleaned input key: '", f);
+    fputs(pCleanKey, f);
+    fputs("'\nConverted deck: '", f);
+  }
+  else
+  {
+    fputs("Input deck: '", f);
+  }
+  char* pDeck = writeDeck(pInputDeck);
+  fputs(pDeck, f);
+  free(pDeck);
+  fputs("'\n", f);
+  fputs("Ending deck: '", f);
+  pDeck = writeDeck(pOutputDeck);
+  fputs(pDeck, f);
+  free(pDeck);
+  fputs("'\n", f);
+  fputs("Output text: '", f);
+  fputs(pCipher, f);
+  fputs("'\n", f);
+
+  if (fclose(f) != 0)
+  {
+    fprintf(stderr, "Error closing output file '%s': %s\n", pOutput, strerror(errno));
+    return false;
+  }
+  return true;
 }
 
 /* Given a deck of cards, return the next value for encryption.
@@ -229,7 +281,7 @@ void moveJokers(deck_t* pDeck)
     assert(false);
   }
 
-  // Shift "B" Joker dopCipherwn two cards
+  // Shift "B" Joker down two cards
   iTo = iPos + 2;
   if (iTo >= pDeck->nCards)
     iTo = iTo - pDeck->nCards + 1;

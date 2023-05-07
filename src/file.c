@@ -71,7 +71,6 @@ bool parseFile(char* pFile, char** pInput, char** pKey)
     size_t iLen = strlen(pCipherText) + 1;
     *pInput = malloc(iLen * sizeof(char));
     strncpy(*pInput, pCipherText, iLen);
-    printf("Raw cipher text (%lu): '%s'\n", iLen, *pInput);
   }
 
   if (strlen(pKeyText) == 0)
@@ -83,7 +82,6 @@ bool parseFile(char* pFile, char** pInput, char** pKey)
     size_t iLen = strlen(pKeyText) + 1;
     *pKey = malloc(iLen * sizeof(char));
     strncpy(*pKey, pKeyText, iLen);
-    printf("Raw key text (%lu): '%s'\n", iLen, *pKey);
   }
 
   return true;

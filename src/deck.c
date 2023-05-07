@@ -5,6 +5,9 @@
 
 #include "deck.h"
 
+char* writeCard(card_t* pCard);
+char* writeDeck(deck_t* pCard);
+
 /* Allocate a card with the desired value.
   Valid cards are values 1-54 which represent a standard deck
   of A-K Clubs->Diamonds->Hearts-Spaces followed by "A" and "B" Joker.
@@ -69,7 +72,7 @@ deck_t* makeDeckFromInt(int* pList, size_t iLen)
 /* Make a standard deck of cards from a list of integers derived from an input text key. */
 deck_t* makeDeckFromKey(int* pList, size_t iLen)
 {
-  printf("This isn't implemented yet. Here's a regular deck.\n");
+  printf("Making a deck from a key isn't implemented (yet). Here's a regular deck.\n");
   return makeStandardDeck();
 }
 
@@ -166,6 +169,41 @@ void moveCard(deck_t* pDeck, size_t iFrom, size_t iTo)
   pDeck->cards[iTo] = pC;
 }
 
+/* Write out pCard to an allocated char array */
+char* writeCard(card_t* pCard)
+{
+  char* pOut = malloc(3 * sizeof(char));
+
+  if (pCard->value == 1)
+    pOut[0] = 'A';
+  else if (pCard->value <= 9) // Values 2-9 are their value above '0'
+    pOut[0] = '0' + pCard->value;
+  else if (pCard->value == 10)
+    pOut[0] = '0';
+  else if (pCard->value == 11)
+    pOut[0] = 'J';
+  else if (pCard->value == 12)
+    pOut[0] = 'Q';
+  else if (pCard->value == 13)
+    pOut[0] = 'K';
+  else if (pCard->value == 53 || pCard->value == 54)
+    pOut[0] = 'W';
+  else
+    assert(false);
+
+  switch (pCard->suit)
+  {
+    case CLUBS: pOut[1] = 'c'; break;
+    case DIAMONDS: pOut[1] = 'd'; break;
+    case HEARTS: pOut[1] = 'h'; break;
+    case SPADES: pOut[1] = 's'; break;
+    default: assert(false);
+  }
+
+  pOut[2] = '\0';
+  return pOut;
+}
+
 /* Print a value/suit pair
    Ace = 'A'
    1-9 = '1' to '9'
@@ -176,46 +214,55 @@ void moveCard(deck_t* pDeck, size_t iFrom, size_t iTo)
    Clubs/Diamonds/Hearts/Spades = 'c'/'d'/'h'/'s' */
 void printCard(card_t* pCard)
 {
-  char suit = 'x';
-  switch (pCard->suit)
+  char* pOut = writeCard(pCard);
+  printf("%s",pOut);
+  free(pOut);
+}
+
+/* Write out pDeck to an allocated char array*/
+char* writeDeck(deck_t* pDeck)
+{
+  char* pOut = NULL;
+  size_t iLen = 0;
+  for (unsigned i = 0; i < pDeck->nCards; i++)
   {
-    case CLUBS: suit = 'c'; break;
-    case DIAMONDS: suit = 'd'; break;
-    case HEARTS: suit = 'h'; break;
-    case SPADES: suit = 's'; break;
-    default: assert(false);
+    iLen += 3;
+    pOut = realloc(pOut, iLen * sizeof(char));
+    char* pCard = writeCard(pDeck->cards[i]);
+    pOut[iLen - 3] = pCard[0];
+    pOut[iLen - 2] = pCard[1];
+    free(pCard);
+    if (i+1 != pDeck->nCards)
+      pOut[iLen - 1] = ' ';
+    else
+    {
+      pOut[iLen - 1] = '\0';
+    }
   }
-
-  char value = 'x';
-  if (pCard->value == 1)
-    value = 'A';
-  else if (pCard->value <= 9) // Values 2-9 are their value above '0'
-    value = '0' + pCard->value;
-  else if (pCard->value == 10)
-    value = '0';
-  else if (pCard->value == 11)
-    value = 'J';
-  else if (pCard->value == 12)
-    value = 'Q';
-  else if (pCard->value == 13)
-    value = 'K';
-  else if (pCard->value == 53 || pCard->value == 54)
-    value = 'W';
-  else
-    assert(false);
-
-  printf("%c%c",value,suit);
+  return pOut;
 }
 
 /* Print out a deck of cards */
 void printDeck(deck_t* pDeck)
 {
-  for (unsigned i = 0; i < pDeck->nCards; i++)
+  char* pOut = writeDeck(pDeck);
+  printf("%s\n", pOut);
+  free(pOut);
+}
+
+/* Copy the input deck to an allocated output deck */
+deck_t* copyDeck(deck_t* pDeck)
+{
+  deck_t* pOutput = makeNullDeck(pDeck->nCards);
+  for (size_t i = 0; i < pDeck->nCards; i++)
   {
-    printCard(pDeck->cards[i]);
-    printf(" ");
+    card_t* pCard = malloc(sizeof(card_t));
+    pCard->value = pDeck->cards[i]->value;
+    pCard->suit = pDeck->cards[i]->suit;
+    pOutput->cards[i] = pCard;
   }
-  printf("\n");
+
+  return pOutput;
 }
 
 /* Free all memory allocated for a deck_t. */
