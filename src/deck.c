@@ -75,8 +75,21 @@ deck_t* makeDeckFromInt(int* pList, size_t iLen)
 /* Make a standard deck of cards from a list of integers derived from an input text key. */
 deck_t* makeDeckFromKey(int* pList, size_t iLen)
 {
-  printf("Making a deck from a key isn't implemented (yet). Here's a regular deck.\n");
-  return makeStandardDeck();
+  deck_t* pDeck = makeStandardDeck();
+  if (iLen < 64)
+  {
+    printf("Warning: The current key length (%lu) is less than 64. ", iLen);
+    printf("It is recommended to use at least a 64 character key (at least 80 is even better).\n");
+  }  
+  // Follow the steps of encryption, but perform the count cut a second time using the input key
+  for (size_t i = 0; i < iLen; i++)
+  {
+    moveJokers(pDeck);
+    tripleCut(pDeck);
+    countCutBottom(pDeck);
+    countCutValue(pDeck, pList[i]);
+  }
+  return pDeck;
 }
 
 /* Allocate a deck of nCards, but do not allocate the individual card_ts */
@@ -213,6 +226,149 @@ void moveCard(deck_t* pDeck, size_t iFrom, size_t iTo)
       pDeck->cards[i] = pDeck->cards[i+1];
   }
   pDeck->cards[iTo] = pC;
+}
+
+/* Move the "A" and "B" jokers */
+void moveJokers(deck_t* pDeck)
+{
+  // Find the "A" joker (53 of Clubs)
+  card_t* pA = NULL;
+  size_t iPos = 0;
+  for(size_t i = 0; i < pDeck->nCards; i++)
+  {
+    if (pDeck->cards[i]->value == 53 && pDeck->cards[i]->suit == CLUBS)
+    {
+      pA = pDeck->cards[i];
+      iPos = i;
+      break;
+    }
+  }
+
+  if (pA == NULL)
+  {
+    fprintf(stderr, "Unable to find 'A' Joker.\n");
+    assert(false);
+  }
+
+  // Shift "A" Joker down one card.
+  size_t iTo = iPos + 1;
+  if (iTo >= pDeck->nCards) // Wrap around back to the start
+    iTo = iTo - pDeck->nCards + 1;
+
+  moveCard(pDeck, iPos, iTo);
+
+  // Find the "B" joker (53 of Spades)
+  card_t* pB = NULL;
+  for(size_t i = 0; i < pDeck->nCards; i++)
+  {
+    if (pDeck->cards[i]->value == 53 && pDeck->cards[i]->suit == SPADES)
+    {
+      pB = pDeck->cards[i];
+      iPos = i;
+      break;
+    }
+  }
+
+  if (pB == NULL)
+  {
+    fprintf(stderr, "Unable to find 'B' Joker.\n");
+    assert(false);
+  }
+
+  // Shift "B" Joker down two cards
+  iTo = iPos + 2;
+  if (iTo >= pDeck->nCards)
+    iTo = iTo - pDeck->nCards + 1;
+
+  moveCard(pDeck, iPos, iTo);
+}
+
+/* Triple cut: Swap all cards before the first joker with all cards after the second joker */
+void tripleCut(deck_t* pDeck)
+{
+  // Copy all cards into a temp deck, grabbing the joker positions
+  card_t** pTempDeck = malloc(pDeck->nCards * sizeof(card_t*));
+  size_t iJoker1 = pDeck->nCards + 1;
+  size_t iJoker2 = pDeck->nCards + 1;
+  for(size_t i = 0; i < pDeck->nCards; i++)
+  {
+    pTempDeck[i] = pDeck->cards[i];
+    if (pTempDeck[i]->value == 53)
+    {
+      if (iJoker1 > pDeck->nCards)
+        iJoker1 = i;
+      else
+        iJoker2 = i;
+    }
+  }
+
+  // Move the cards after the second joker to the front
+  size_t idx = 0;
+  for (size_t i = iJoker2 + 1; i < pDeck->nCards; i++)
+  {
+    pDeck->cards[idx] = pTempDeck[i];
+    idx++;
+  }
+  // Move the cards between both jokers, inclusive
+  for (size_t i = iJoker1; i <= iJoker2; i++)
+  {
+    pDeck->cards[idx] = pTempDeck[i];
+    idx++;
+  }
+  // Move the cards before the first joker
+  for (size_t i = 0; i < iJoker1; i++)
+  {
+    pDeck->cards[idx] = pTempDeck[i];
+    idx++;
+  }
+  free(pTempDeck);
+}
+
+/* Using the bottom card as a reference, cut the deck and move to the bottom leaving the bottom card intact. */
+void countCutBottom(deck_t* pDeck)
+{
+  // If the bottom card is a joker, do nothing
+  card_t* pBottom = pDeck->cards[(pDeck->nCards - 1)];
+  if (pBottom->value == 53)
+    return;
+  
+  // Otherwise get the card value from 1 to 53
+  size_t iValue = pBottom->value;
+  switch(pBottom->suit)
+  {
+    case CLUBS: break;
+    case DIAMONDS: iValue += 13; break;
+    case HEARTS: iValue += 26; break;
+    case SPADES: iValue += 39; break;
+    case NUM_SUITS: assert(false); break;
+  }
+
+  countCutValue(pDeck, iValue);
+}
+
+/* Using the input number as a reference, cut the deck and move to the bottom leaving the bottom card intact. */
+void countCutValue(deck_t* pDeck, size_t iValue)
+{
+  // Move the cards into a temp array
+  card_t** pTempDeck = malloc(pDeck->nCards * sizeof(card_t*));
+  for (size_t i = 0; i < pDeck->nCards; i++)
+    pTempDeck[i] = pDeck->cards[i];
+
+  // Move all cards below to the top (except the bottom)
+  size_t idx = 0;
+  for (size_t i = iValue; i < pDeck->nCards - 1; i++)
+  {
+    pDeck->cards[idx] = pTempDeck[i];
+    idx++;
+  }
+  // ...and move all cards on top to the bottom
+  for (size_t i = 0; i < iValue; i++)
+  {
+    pDeck->cards[idx] = pTempDeck[i];
+    idx++;
+  }
+  pDeck->cards[idx] = pTempDeck[idx];
+  free(pTempDeck);
 }
 
 /* Write out pCard to an allocated char array */
