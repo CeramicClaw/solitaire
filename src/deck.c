@@ -8,7 +8,7 @@
   Valid cards are values 1-54 which represent a standard deck
   of A-K Clubs->Diamonds->Hearts-Spaces followed by "A" and "B" Joker.
   "A" Joker is represented by 53 of Clubs, "B" Joker is 53 of Spades.
-   Any invalid value or suit will return NULL. */
+  Any invalid value or suit will return NULL. */
 card_t* makeCard(unsigned value)
 {
   if (value < 1 || value > 54)
@@ -74,7 +74,6 @@ deck_t* makeStandardDeck()
     assert(pCard != NULL);
     pDeck->cards[i-1] = pCard;
   }
-  printDeck(pDeck);
   return pDeck;
 }
 
@@ -91,14 +90,7 @@ void shuffleDeck(deck_t* pDeck)
     // For now, use unseeded random(). To be replaced by a /dev/urandom read "later"
     r = (size_t)random() % pDeck->nCards; // Random number between 0 and nCards (53)
     if (r > 0)
-    {
-      card_t* pTop = pDeck->cards[0];
-      for (size_t j = 0; j < r; j++) // Shift all cards up by 1
-      {
-        pDeck->cards[j] = pDeck->cards[j+1];
-      }
-      pDeck->cards[r] = pTop; // Then insert the top card
-    }
+      moveCard(pDeck, 0, r);
   }
   printDeck(pDeck);
 }

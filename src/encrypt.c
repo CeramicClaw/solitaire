@@ -38,7 +38,38 @@ char* cipher(bool bEncrypt, deck_t* pDeck, char* pCipher, size_t iLen)
 int genKeystream(deck_t* pDeck)
 {
   moveJokers(pDeck);
-  return charToInt('A');
+  tripleCut(pDeck);
+  countCut(pDeck);
+
+  // Finally, get the output card
+  card_t* pTop = pDeck->cards[0];
+  size_t iValue = pTop->value;
+  if (iValue != 53)
+  {
+    switch(pTop->suit)
+    {
+      case CLUBS: break;
+      case DIAMONDS: iValue += 13; break;
+      case HEARTS: iValue += 26; break;
+      case SPADES: iValue += 39; break;
+      case NUM_SUITS: assert(false); break;
+    }
+  }
+
+  card_t* pOutput = pDeck->cards[iValue];
+  iValue = pOutput->value;
+  if (iValue == 53) // Jokers are ignored
+    return genKeystream(pDeck);
+
+  switch(pOutput->suit)
+  {
+    case CLUBS: break;
+    case DIAMONDS: iValue += 13; break;
+    case HEARTS: break;
+    case SPADES: iValue += 13; break;
+    case NUM_SUITS: assert(false); break;
+  }
+  return (int)iValue;
 }
 
 /* Move the "A" and "B" jokers */
@@ -64,8 +95,10 @@ void moveJokers(deck_t* pDeck)
   }
 
   // Shift "A" Joker down one card.
-  // If it is the last card, it goes into position 1
-  size_t iTo = iPos == (pDeck->nCards - 1) ? 1 : iPos + 1;
+  size_t iTo = iPos + 1;
+  if (iTo >= pDeck->nCards) // Wrap around back to the start
+    iTo = iTo - pDeck->nCards + 1;
+
   moveCard(pDeck, iPos, iTo);
 
   // Find the "B" joker (53 of Spades)
@@ -87,14 +120,91 @@ void moveJokers(deck_t* pDeck)
   }
 
   // Shift "B" Joker down two cards
-  if (iPos == (pDeck->nCards - 1))
-    iTo = 2;
-  else if (iPos == (pDeck->nCards - 2))
-    iTo = 1;
-  else
-    iTo = iPos + 2;
+  iTo = iPos + 2;
+  if (iTo >= pDeck->nCards)
+    iTo = iTo - pDeck->nCards + 1;
 
   moveCard(pDeck, iPos, iTo);
+}
+
+/* Triple cut: Swap all cards before the first joker with all cards after the second joker */
+void tripleCut(deck_t* pDeck)
+{
+  // Copy all cards into a temp deck, grabbing the joker positions
+  card_t** pTempDeck = malloc(pDeck->nCards * sizeof(card_t*));
+  size_t iJoker1 = pDeck->nCards + 1;
+  size_t iJoker2 = pDeck->nCards + 1;
+  for(size_t i = 0; i < pDeck->nCards; i++)
+  {
+    pTempDeck[i] = pDeck->cards[i];
+    if (pTempDeck[i]->value == 53)
+    {
+      if (iJoker1 > pDeck->nCards)
+        iJoker1 = i;
+      else
+        iJoker2 = i;
+    }
+  }
+
+  // Move the cards after the second joker to the front
+  size_t idx = 0;
+  for (size_t i = iJoker2 + 1; i < pDeck->nCards; i++)
+  {
+    pDeck->cards[idx] = pTempDeck[i];
+    idx++;
+  }
+  // Move the cards between both jokers, inclusive
+  for (size_t i = iJoker1; i <= iJoker2; i++)
+  {
+    pDeck->cards[idx] = pTempDeck[i];
+    idx++;
+  }
+  // Move the cards before the first joker
+  for (size_t i = 0; i < iJoker1; i++)
+  {
+    pDeck->cards[idx] = pTempDeck[i];
+    idx++;
+  }
+  free(pTempDeck);
+}
+
+/* Using the bottom card as a reference, cut the deck and move to the bottom leaving the bottom card intact. */
+void countCut(deck_t* pDeck)
+{
+  // If the bottom card is a joker, do nothing
+  card_t* pBottom = pDeck->cards[(pDeck->nCards - 1)];
+  if (pBottom->value == 53)
+    return;
+  // Otherwise get the card value from 1 to 53
+  size_t iValue = pBottom->value;
+  switch(pBottom->suit)
+  {
+    case CLUBS: break;
+    case DIAMONDS: iValue += 13; break;
+    case HEARTS: iValue += 26; break;
+    case SPADES: iValue += 39; break;
+    case NUM_SUITS: assert(false); break;
+  }
+  // Move the deck into a temp deck
+  card_t** pTempDeck = malloc(pDeck->nCards * sizeof(card_t*));
+  for (size_t i = 0; i < pDeck->nCards; i++)
+    pTempDeck[i] = pDeck->cards[i];
+
+  // Move all cards below to the top (except the bottom)
+  size_t idx = 0;
+  for (size_t i = iValue; i < pDeck->nCards - 1; i++)
+  {
+    pDeck->cards[idx] = pTempDeck[i];
+    idx++;
+  }
+  // ...and move all cards on top to the bottom
+  for (size_t i = 0; i < iValue; i++)
+  {
+    pDeck->cards[idx] = pTempDeck[i];
+    idx++;
+  }
+  pDeck->cards[idx] = pTempDeck[idx];
+  free(pTempDeck);
 }
 
 /* Convert char to int with 'A' = 1, 'B' = 2, etc. Input char MUST be capitalized. */
