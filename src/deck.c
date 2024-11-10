@@ -1,12 +1,15 @@
 #include <assert.h>
+#include <errno.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "deck.h"
 
 char* writeCard(card_t* pCard);
 char* writeDeck(deck_t* pCard);
+unsigned short getRandom();
 
 /* Allocate a card with the desired value.
   Valid cards are values 1-54 which represent a standard deck
@@ -137,18 +140,61 @@ bool validateDeck(int* pList, size_t iLen)
 /* Shuffle a deck of cards */
 void shuffleDeck(deck_t* pDeck)
 {
-  /* Grab the top card of the deck and randomly insert it into the deck
-     repeat at least 54 + 54/2 + 54/3 + 54/4 + ... + 54/53 + 54/54 = 247 times.
-     Use 500 just to be safe.*/
-  size_t r = 0;
-  for (int i = 0; i < 500; i++)
+  /* Grab the top card of the deck and randomly insert it into the deck.
+     Repeat until the bottom card has been moved.*/
+  card_t* pLast = pDeck->cards[pDeck->nCards - 1];
+  size_t randomNum = 0;
+  int iCount = 0;
+  bool bDone = false;
+  bool bLast = false;
+  while (!bDone)
   {
-    // For now, use unseeded random(). To be replaced by a /dev/urandom read "later"
-    // Switch this to a do/while loop until the bottom card becomes the top card and then gets shuffled
-    r = (size_t)random() % pDeck->nCards; // Random number between 0 and nCards (53)
-    if (r > 0)
-      moveCard(pDeck, 0, r);
+    iCount++;
+    if (iCount > 10000)
+    {
+      fprintf(stderr, "The shuffle loop has exceeded 10,000 steps. Stopping...\n");
+      break;
+    }
+
+    bLast = pDeck->cards[0] == pLast; // If the last card has been moved to the top, this is the last step
+    randomNum = getRandom() % pDeck->nCards; // Random number between 0 and nCards (53)
+    if (randomNum > 0)
+      moveCard(pDeck, 0, randomNum);
+    
+    /* If the last card is no longer on top, the deck is shuffled.
+    *  It's possible (a 1/54 chance) that the random number returned mod 53 is 0.
+    *  So, a final check to see that the top card *actually* moved is required. */
+    bDone = bLast && pDeck->cards[0] != pLast; 
   }
+}
+
+/* Get a random number */
+unsigned short getRandom()
+{
+  char* randomPath = "/dev/urandom";
+  FILE* f = fopen(randomPath, "r");
+  if (!f)
+  {
+    fprintf(stderr, "Error reading from '%s': %s\n", randomPath, strerror(errno));
+    return 0;
+  }
+  
+  unsigned short rand = 0;
+  size_t ret = fread(&rand, 1, sizeof(rand), f);
+
+  if (ret != sizeof(rand))
+  {
+    fprintf(stderr, "Error reading '%s'\n", randomPath);
+    rand = 0;
+  }
+
+  if (fclose(f) != 0)
+  {
+    fprintf(stderr, "Error closing '%s': %s\n", randomPath, strerror(errno));
+    return 0;
+  }
+  
+  return rand;
 }
 
 /* Move a card in a deck from a position, to another position */
