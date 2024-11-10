@@ -1,12 +1,10 @@
 CC = gcc
-CFLAGS = -Wall -Werror -pedantic
-DEPS = cards.o deck.o main.o
+CFLAGS = -ggdb3 -Wall -Werror -pedantic
+DEPS = deck.o main.o
 PROJECT = solitaire
 
 ${PROJECT} : $(DEPS)
 	$(CC) -o ${PROJECT} $(DEPS)
-cards.o:
-	$(CC) $(CFLAGS) -c src/cards.c
 deck.o:
 	$(CC) $(CFLAGS) -c src/deck.c
 main.o:
