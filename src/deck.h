@@ -36,6 +36,8 @@ deck_t* makeStandardDeck();
 bool validateDeck(int* pList, size_t iLen);
 void shuffleDeck(deck_t* pDeck);
 void moveCard(deck_t* pDeck, size_t iFrom, size_t iTo);
+char* writeDeck(deck_t* pDeck);
 void printDeck(deck_t* pDeck);
+deck_t* copyDeck(deck_t* pDeck);
 void freeDeck(deck_t* pDeck);
 #endif
