@@ -1,10 +1,12 @@
 CC = gcc
 CFLAGS = -ggdb3 -Wall -Werror -pedantic
-DEPS = deck.o main.o
+DEPS = deck.o encrypt.o main.o
 PROJECT = solitaire
 
 ${PROJECT} : $(DEPS)
 	$(CC) -o ${PROJECT} $(DEPS)
+encrypt.o:
+	$(CC) $(CFLAGS) -c src/encrypt.c
 deck.o:
 	$(CC) $(CFLAGS) -c src/deck.c
 main.o:
