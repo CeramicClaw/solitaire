@@ -5,6 +5,7 @@
 
 int main(int argc, char ** argv)
 {
-  printf("Runs!\n");
+  deck_t* pDeck = makeDeck();
+  freeDeck(pDeck);
   return EXIT_SUCCESS;
 }
