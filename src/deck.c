@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -48,6 +49,30 @@ card_t* makeCard(unsigned value)
   return pCard;
 }
 
+/* Make a standard deck of cards from a list of integers */
+deck_t* makeDeckFromInt(int* pList, size_t iLen)
+{
+  if (!validateDeck(pList, iLen))
+    return NULL;
+
+  deck_t* pDeck = makeNullDeck(iLen);
+  for (int i = 0; i < iLen; i++)
+  {
+    card_t* pCard = makeCard(pList[i]);
+    assert(pCard != NULL);
+    pDeck->cards[i] = pCard;
+  }
+
+  return pDeck;
+}
+
+/* Make a standard deck of cards from a list of integers derived from an input text key. */
+deck_t* makeDeckFromKey(int* pList, size_t iLen)
+{
+  printf("This isn't implemented yet. Here's a regular deck.\n");
+  return makeStandardDeck();
+}
+
 /* Allocate a deck of nCards, but do not allocate the individual card_ts */
 deck_t* makeNullDeck(size_t nCards)
 {
@@ -77,10 +102,38 @@ deck_t* makeStandardDeck()
   return pDeck;
 }
 
+/* Take a list of iLen numbers and verify it is a complete deck.
+   If the list is valid, return true. Otherwise, return false.*/
+bool validateDeck(int* pList, size_t iLen)
+{
+  if (iLen != 54)
+  {
+    fprintf(stderr, "Invalid deck size: %lu. Input deck must be length 54.\n", iLen);
+    return false;
+  }
+
+  // Loop through the input list and make a new deck, checking for invalid values or duplicates
+  int pCheck[54] = { 0 }; // Used to keep track of which cards have already been found
+  for (size_t i = 0; i < 54; i++)
+  {
+    if (pList[i] < 1 || pList[i] > 54)
+    {
+      fprintf(stderr, "Invalid input card value '%i' in position '%lu'. Input card value must be between 1 and 54, inclusive.\n", pList[i], i);
+      return false;
+    }
+    pCheck[(size_t)(pList[i] - 1)]++; // Increment the *index* of the card by 1
+    if (pCheck[(size_t)(pList[i] - 1)] > 1) // If the index ever exceeds 1, the card is duplicated
+    {
+      fprintf(stderr, "Invalid duplicate card value '%i' in position '%lu'.\n", pList[i], i);
+      return false;
+    }
+  }
+  return true;
+}
+
 /* Shuffle a deck of cards */
 void shuffleDeck(deck_t* pDeck)
 {
-  printf("Shuffling deck...\n");
   /* Grab the top card of the deck and randomly insert it into the deck
      repeat at least 54 + 54/2 + 54/3 + 54/4 + ... + 54/53 + 54/54 = 247 times.
      Use 500 just to be safe.*/
@@ -88,11 +141,11 @@ void shuffleDeck(deck_t* pDeck)
   for (int i = 0; i < 500; i++)
   {
     // For now, use unseeded random(). To be replaced by a /dev/urandom read "later"
+    // Switch this to a do/while loop until the bottom card becomes the top card and then gets shuffled
     r = (size_t)random() % pDeck->nCards; // Random number between 0 and nCards (53)
     if (r > 0)
       moveCard(pDeck, 0, r);
   }
-  printDeck(pDeck);
 }
 
 /* Move a card in a deck from a position, to another position */
@@ -165,15 +218,15 @@ void printDeck(deck_t* pDeck)
   printf("\n");
 }
 
-/* Free all memory allocated for a deck_t.
-   Pass "true" to bFreeCards to free all cards, too. */
-void freeDeck(deck_t* pDeck, bool bFreeCards)
+/* Free all memory allocated for a deck_t. */
+void freeDeck(deck_t* pDeck)
 {
-  if (bFreeCards)
+  if (pDeck != NULL)
   {
     for (size_t i = 0; i < pDeck->nCards; i++)
       free(pDeck->cards[i]);
+
+    free(pDeck->cards);
+    free(pDeck);
   }
-  free(pDeck->cards);
-  free(pDeck);
 }

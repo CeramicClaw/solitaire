@@ -1,10 +1,120 @@
 #include <assert.h>
 #include <stdio.h>
-#include "encrypt.h"
+#include <string.h>
+
+#include "cipher.h"
+#include "file.h"
+
+int genKeystream(deck_t* pDeck);
+void moveJokers(deck_t* pDeck);
+void tripleCut(deck_t* pDeck);
+void countCut(deck_t* pDeck);
+int charToInt(char c);
+char intToChar(int i);
+
+/* Read the input file pFile.
+   Set bEncrypt to true to encrypt the text, false to decrypt it.
+   Set isDeck to true if a deck is to be used, false if key text is to be used.
+   If successful, the file 'output.txt' will be created. */
+bool run(char* pFile, bool bEncrypt, bool isDeck)
+{
+  char* pRawInput = NULL;
+  char* pRawKey = NULL;
+  if (!parseFile(pFile, &pRawInput, &pRawKey))
+    return false;
+
+  // If no key is given and we're trying to decrypt, fail the calculation
+  if (pRawKey == NULL && !bEncrypt)
+  {
+    fprintf(stderr, "Unable to decrypt, key/deck was empty.\n");
+    free(pRawInput);
+    return false;
+  }
+
+  // Clean the input text
+  char* pCleanInput = NULL;
+  size_t iLen = strlen(pRawInput) + 1;
+  pCleanInput = malloc(iLen * sizeof(char));
+  strncpy(pCleanInput, pRawInput, iLen);
+  cleanInput(pCleanInput);
+  if (strlen(pCleanInput) == 0)
+  {
+    fprintf(stderr, "Input text '%s' did not contain any alpha characters.\n", pRawInput);
+    free(pRawInput);
+    free(pRawKey);
+    free(pCleanInput);
+    return false;
+  }
+
+  // Clean the input key (pRawKey), if provided, and transform it into an allocated deck (pDeck)
+  char* pCleanKey = NULL;
+  deck_t* pDeck = NULL;
+  if (pRawKey != NULL)
+  {
+    size_t iCleanLen = strlen(pRawKey) + 1;
+    pCleanKey = malloc(iCleanLen * sizeof(char));
+    strncpy(pCleanKey, pRawKey, iCleanLen);
+
+    int* pDeckKey = NULL;
+    if (isDeck)
+      iCleanLen = cleanDeckKey(pCleanKey, &pDeckKey);
+    else
+      iCleanLen = cleanAlphaKey(pCleanKey, &pDeckKey);
+
+    if (iCleanLen == 0)
+    {
+      free(pRawInput);
+      free(pRawKey);
+      free(pCleanInput);
+      free(pCleanKey);
+      return false;
+    }
+
+    if (isDeck)
+      pDeck = makeDeckFromInt(pDeckKey, iCleanLen);
+    else
+      pDeck = makeDeckFromKey(pDeckKey, iCleanLen);
+
+    free(pDeckKey);
+  }
+
+  printf("Cleaned cipher text: '%s'.\n", pCleanInput);
+  printf("Cleaned key text: '%s'.\n", pCleanKey);
+
+  // If no input deck/key was provided, create a random, shuffled deck of cards
+  if (pDeck == NULL)
+  {
+    printf("No input deck/key was provided. Creating a random deck of cards...\n");
+    // Allocate a random, shuffled deck of cards to pDeck
+    pDeck = makeStandardDeck();
+    shuffleDeck(pDeck);
+  }
+
+  /* Here we *should* have a valid cipher text and a valid deck
+    Encrypt/decrypt the cipher text
+    Write everything to file
+    Cleanup memory
+    ???
+    Profit
+  */
+
+  char* pOutput = cipher(bEncrypt, pDeck, pCleanInput, strlen(pCleanInput));
+
+  printf("Encrypted text: '%s'\n", pOutput);
+
+  free(pRawInput);
+  free(pRawKey);
+  free(pCleanInput);
+  free(pCleanKey);
+  free(pOutput);
+  freeDeck(pDeck);
+
+  return true;
+}
 
 /* Encode/decode text from a deck of cards.
-   If encrypting, set bEncrypt to TRUE; if decrypting set to FALSE.
-   Returned output is a null-terminated string of chars.
+   If encrypting, set bEncrypt to true; if decrypting set to true.
+   Returned output is an allocated, null-terminated string of chars.
 */
 char* cipher(bool bEncrypt, deck_t* pDeck, char* pCipher, size_t iLen)
 {
@@ -119,7 +229,7 @@ void moveJokers(deck_t* pDeck)
     assert(false);
   }
 
-  // Shift "B" Joker down two cards
+  // Shift "B" Joker dopCipherwn two cards
   iTo = iPos + 2;
   if (iTo >= pDeck->nCards)
     iTo = iTo - pDeck->nCards + 1;
@@ -185,7 +295,7 @@ void countCut(deck_t* pDeck)
     case SPADES: iValue += 39; break;
     case NUM_SUITS: assert(false); break;
   }
-  // Move the deck into a temp deck
+  // Move the cards into a temp array
   card_t** pTempDeck = malloc(pDeck->nCards * sizeof(card_t*));
   for (size_t i = 0; i < pDeck->nCards; i++)
     pTempDeck[i] = pDeck->cards[i];
